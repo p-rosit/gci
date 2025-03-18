@@ -21,7 +21,9 @@ pub fn build(b: *std.Build) void {
         .files = &.{ "reader/reader.c", "writer/writer.c" },
     });
     lib.installHeader(b.path("src/interface/gci_interface_reader.h"), "gci_interface_reader.h");
+    lib.installHeader(b.path("src/implementation/gci_reader.h"), "gci_reader.h");
     lib.installHeader(b.path("src/interface/gci_interface_writer.h"), "gci_interface_writer.h");
+    lib.installHeader(b.path("src/implementation/gci_writer.h"), "gci_writer.h");
     lib.installHeader(b.path("src/gci_common.h"), "gci_common.h");
 
     const lib_unit_tests = b.addTest(.{
