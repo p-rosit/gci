@@ -4,6 +4,12 @@ pub fn build(b: *std.Build) void {
     const target = b.standardTargetOptions(.{});
     const optimize = b.standardOptimizeOption(.{});
 
+    const mod = b.addModule("gci", .{
+        .root_source_file = b.path("src/gci.zig"),
+        .target = target,
+        .optimize = optimize,
+    });
+
     const lib = b.addStaticLibrary(.{
         .name = "gci",
         .root_source_file = b.path("src/gci.zig"),
@@ -11,6 +17,7 @@ pub fn build(b: *std.Build) void {
         .optimize = optimize,
         .link_libc = true,
     });
+    mod.linkLibrary(lib);
     lib.addIncludePath(b.path("src"));
     lib.addIncludePath(b.path("src/interface"));
     lib.addIncludePath(b.path("src/implementation"));
