@@ -1,0 +1,12 @@
+-std=c99
+-x
+c
+-I
+/home/pontus/clang/gci/src/interface
+-I
+/home/pontus/clang/gci/src
+-Wall
+-Wextra
+-Wconversion
+-Wdouble-promotion
+-Wpedantic
