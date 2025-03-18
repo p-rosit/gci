@@ -14,13 +14,15 @@ pub fn build(b: *std.Build) void {
     lib.addIncludePath(b.path("src"));
     lib.addIncludePath(b.path("src/interface"));
     lib.addIncludePath(b.path("src/implementation/reader"));
+    lib.addIncludePath(b.path("src/implementation/writer"));
     b.installArtifact(lib);
 
     lib.addCSourceFiles(.{
-        .root = b.path("src/implementation/reader"),
-        .files = &.{"reader.c"},
+        .root = b.path("src/implementation"),
+        .files = &.{ "reader/reader.c", "writer/writer.c" },
     });
     lib.installHeader(b.path("src/interface/gci_interface_reader.h"), "gci_interface_reader.h");
+    lib.installHeader(b.path("src/interface/gci_interface_writer.h"), "gci_interface_writer.h");
     lib.installHeader(b.path("src/gci_common.h"), "gci_common.h");
 
     const lib_unit_tests = b.addTest(.{
@@ -31,6 +33,7 @@ pub fn build(b: *std.Build) void {
     lib_unit_tests.addIncludePath(b.path("src"));
     lib_unit_tests.addIncludePath(b.path("src/interface"));
     lib_unit_tests.addIncludePath(b.path("src/implementation/reader"));
+    lib_unit_tests.addIncludePath(b.path("src/implementation/writer"));
     lib_unit_tests.linkLibrary(lib);
     const run_lib_unit_tests = b.addRunArtifact(lib_unit_tests);
 

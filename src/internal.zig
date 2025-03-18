@@ -2,6 +2,8 @@ pub const lib = @cImport({
     @cInclude("gci_common.h");
     @cInclude("gci_interface_reader.h");
     @cInclude("gci_reader.h");
+    @cInclude("gci_interface_writer.h");
+    @cInclude("gci_writer.h");
 });
 
 pub fn enumToError(err: lib.GciError) !void {
