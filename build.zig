@@ -13,8 +13,7 @@ pub fn build(b: *std.Build) void {
     });
     lib.addIncludePath(b.path("src"));
     lib.addIncludePath(b.path("src/interface"));
-    lib.addIncludePath(b.path("src/implementation/reader"));
-    lib.addIncludePath(b.path("src/implementation/writer"));
+    lib.addIncludePath(b.path("src/implementation"));
     b.installArtifact(lib);
 
     lib.addCSourceFiles(.{
@@ -32,8 +31,7 @@ pub fn build(b: *std.Build) void {
     });
     lib_unit_tests.addIncludePath(b.path("src"));
     lib_unit_tests.addIncludePath(b.path("src/interface"));
-    lib_unit_tests.addIncludePath(b.path("src/implementation/reader"));
-    lib_unit_tests.addIncludePath(b.path("src/implementation/writer"));
+    lib_unit_tests.addIncludePath(b.path("src/implementation"));
     lib_unit_tests.linkLibrary(lib);
     const run_lib_unit_tests = b.addRunArtifact(lib_unit_tests);
 
