@@ -8,7 +8,11 @@ pub fn build(b: *std.Build) void {
         .root_source_file = b.path("src/gci.zig"),
         .target = target,
         .optimize = optimize,
+        .link_libc = true,
     });
+    mod.addIncludePath(b.path("src"));
+    mod.addIncludePath(b.path("src/interface"));
+    mod.addIncludePath(b.path("src/implementation"));
 
     const lib = b.addStaticLibrary(.{
         .name = "gci",
