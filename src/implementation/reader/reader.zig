@@ -51,11 +51,15 @@ pub fn Reader(AnyReader: type) type {
         }
 
         pub fn interface(self: *Self) InterfaceReader {
-            const reader = lib.GciReaderInterface{ .context = self, .read = readCallback };
+            const reader = lib.GciInterfaceReader{
+                .context = self,
+                .read = readCallback,
+                .eof = eofCallback,
+            };
             return .{ .reader = reader };
         }
 
-        fn readCallback(context: ?*const anyopaque, buffer: [*c]u8, buffer_size: c_int) callconv(.C) c_int {
+        fn readCallback(context: ?*const anyopaque, buffer: [*c]u8, buffer_size: usize) callconv(.C) usize {
             std.debug.assert(null != context);
             std.debug.assert(null != buffer);
 
@@ -64,17 +68,21 @@ pub fn Reader(AnyReader: type) type {
             const b = @as(*[]u8, @constCast(@ptrCast(&.{ .ptr = buffer, .len = buffer_size }))).*;
 
             const amount_read = r.read(b) catch |err| switch (err) {
-                error.EnfOfStream => {
+                error.EndOfStream => blk: {
                     self.saw_eof = true;
-                    0;
+                    break :blk 0;
                 },
                 else => 0,
             };
 
+            if (amount_read < buffer_size) {
+                self.saw_eof = true;
+            }
+
             return amount_read;
         }
 
-        fn eofCallback(context: ?*const anyopaque) callconv(.C) c_int {
+        fn eofCallback(context: ?*const anyopaque) callconv(.C) bool {
             std.debug.assert(null != context);
             const self: *Self = @constCast(@alignCast(@ptrCast(context)));
             return self.saw_eof;
@@ -156,6 +164,42 @@ const clib = @cImport({
 
 test "c tests" {
     _ = @import("test_reader.zig");
+}
+
+test "zig reader init" {
+    const Fifo = std.fifo.LinearFifo(u8, .Slice);
+    const FifoReader = Reader(Fifo.Reader);
+
+    var data: [2]u8 = undefined;
+    var fifo = Fifo.init(&data);
+
+    var fifo_context = FifoReader.init(@constCast(&fifo.reader()));
+    _ = fifo_context.interface();
+}
+
+test "zig reader read" {
+    const Fifo = std.fifo.LinearFifo(u8, .Slice);
+    const FifoReader = Reader(Fifo.Reader);
+
+    var data: [2]u8 = undefined;
+    var fifo = Fifo.init(&data);
+    try fifo.write("12");
+
+    var fifo_context = FifoReader.init(@constCast(&fifo.reader()));
+    const reader = fifo_context.interface();
+
+    var buffer: [1]u8 = undefined;
+    const result1 = try reader.read(&buffer);
+    try testing.expectEqualStrings("1", result1);
+    try testing.expect(!reader.eof());
+
+    const result2 = try reader.read(&buffer);
+    try testing.expectEqualStrings("2", result2);
+    try testing.expect(!reader.eof());
+
+    const err = reader.read(&buffer);
+    try testing.expectError(error.Reader, err);
+    try testing.expect(reader.eof());
 }
 
 test "fail init" {
