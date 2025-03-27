@@ -4,6 +4,8 @@ c
 -I
 /home/pontus/clang/gci/src/interface
 -I
+/home/pontus/clang/gci/src/implementation
+-I
 /home/pontus/clang/gci/src
 -Wall
 -Wextra

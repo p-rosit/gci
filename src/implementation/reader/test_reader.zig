@@ -30,14 +30,23 @@ test "fail fails" {
     try testing.expectEqual(@as(c_uint, lib.GCI_ERROR_OK), init_err);
 
     const reader = lib.gci_reader_fail_interface(&context);
+    try testing.expect(!lib.gci_reader_eof(reader));
 
     var buffer: [1]u8 = undefined;
     const length1 = lib.gci_reader_read(reader, &buffer, buffer.len);
     try testing.expectEqual(1, length1);
     try testing.expectEqualStrings("1", buffer[0..1]);
+    try testing.expect(!lib.gci_reader_eof(reader));
 
     const length2 = lib.gci_reader_read(reader, &buffer, buffer.len);
     try testing.expectEqual(0, length2);
+    try testing.expect(!lib.gci_reader_eof(reader));
+
+    context.reads_before_fail = 2;
+    const length3 = lib.gci_reader_read(reader, &buffer, buffer.len);
+    try testing.expectEqual(1, length3);
+    try testing.expectEqualStrings("2", buffer[0..1]);
+    try testing.expect(lib.gci_reader_eof(reader));
 }
 
 test "file init" {
@@ -73,14 +82,17 @@ test "file read" {
     const init_err = lib.gci_reader_file_init(&context, @ptrCast(file));
     try testing.expectEqual(@as(c_uint, lib.GCI_ERROR_OK), init_err);
     const reader = lib.gci_reader_file_interface(&context);
+    try testing.expect(!lib.gci_reader_eof(reader));
 
     var buffer: [1]u8 = undefined;
     const length1 = lib.gci_reader_read(reader, &buffer, buffer.len);
     try testing.expectEqual(1, length1);
     try testing.expectEqualStrings("1", &buffer);
+    try testing.expect(!lib.gci_reader_eof(reader));
 
     const length2 = lib.gci_reader_read(reader, &buffer, buffer.len);
     try testing.expectEqual(0, length2);
+    try testing.expect(lib.gci_reader_eof(reader));
 }
 
 test "string init" {
@@ -109,11 +121,33 @@ test "string read" {
     const init_err = lib.gci_reader_string_init(&context, data, data.len);
     try testing.expectEqual(@as(c_uint, lib.GCI_ERROR_OK), init_err);
     const reader = lib.gci_reader_string_interface(&context);
+    try testing.expect(!lib.gci_reader_eof(reader));
 
     var buffer: [3]u8 = undefined;
     const length = lib.gci_reader_read(reader, &buffer, buffer.len);
     try testing.expectEqual(3, length);
     try testing.expectEqualStrings("zig", &buffer);
+    try testing.expect(lib.gci_reader_eof(reader));
+}
+
+test "string read separate" {
+    const data = "12";
+    var context: lib.GciReaderString = undefined;
+    const init_err = lib.gci_reader_string_init(&context, data, data.len);
+    try testing.expectEqual(@as(c_uint, lib.GCI_ERROR_OK), init_err);
+    const reader = lib.gci_reader_string_interface(&context);
+    try testing.expect(!lib.gci_reader_eof(reader));
+
+    var buffer: [1]u8 = undefined;
+    const length1 = lib.gci_reader_read(reader, &buffer, buffer.len);
+    try testing.expectEqual(1, length1);
+    try testing.expectEqualStrings("1", &buffer);
+    try testing.expect(!lib.gci_reader_eof(reader));
+
+    const length2 = lib.gci_reader_read(reader, &buffer, buffer.len);
+    try testing.expectEqual(1, length2);
+    try testing.expectEqualStrings("2", &buffer);
+    try testing.expect(lib.gci_reader_eof(reader));
 }
 
 test "string read overflow" {
@@ -122,14 +156,17 @@ test "string read overflow" {
     const init_err = lib.gci_reader_string_init(&context, data, data.len);
     try testing.expectEqual(@as(c_uint, lib.GCI_ERROR_OK), init_err);
     const reader = lib.gci_reader_string_interface(&context);
+    try testing.expect(!lib.gci_reader_eof(reader));
 
     var buffer: [2]u8 = undefined;
     const length1 = lib.gci_reader_read(reader, &buffer, buffer.len);
     try testing.expectEqual(1, length1);
     try testing.expectEqualStrings("z", buffer[0..1]);
+    try testing.expect(lib.gci_reader_eof(reader));
 
     const length2 = lib.gci_reader_read(reader, &buffer, buffer.len);
     try testing.expectEqual(0, length2);
+    try testing.expect(lib.gci_reader_eof(reader));
 }
 
 test "buffer init" {
@@ -198,11 +235,13 @@ test "buffer read" {
     );
     try testing.expectEqual(@as(c_uint, lib.GCI_ERROR_OK), init_err);
     const reader = lib.gci_reader_buffer_interface(&context);
+    try testing.expect(!lib.gci_reader_eof(reader));
 
     var result_buffer: [2]u8 = undefined;
     const length = lib.gci_reader_read(reader, &result_buffer, result_buffer.len);
     try testing.expectEqual(2, length);
     try testing.expectEqualStrings("da", result_buffer[0..2]);
+    try testing.expect(!lib.gci_reader_eof(reader));
 }
 
 test "buffer read buffer twice" {
@@ -221,11 +260,13 @@ test "buffer read buffer twice" {
     );
     try testing.expectEqual(@as(c_uint, lib.GCI_ERROR_OK), init_err);
     const reader = lib.gci_reader_buffer_interface(&context);
+    try testing.expect(!lib.gci_reader_eof(reader));
 
     var result_buffer: [5]u8 = undefined;
     const length = lib.gci_reader_read(reader, &result_buffer, result_buffer.len);
     try testing.expectEqual(4, length);
     try testing.expectEqualStrings("data", result_buffer[0..4]);
+    try testing.expect(lib.gci_reader_eof(reader));
 }
 
 test "buffer internal reader empty" {
@@ -244,10 +285,12 @@ test "buffer internal reader empty" {
     );
     try testing.expectEqual(@as(c_uint, lib.GCI_ERROR_OK), init_err);
     const reader = lib.gci_reader_buffer_interface(&context);
+    try testing.expect(lib.gci_reader_eof(reader));
 
     var result_buffer: [2]u8 = undefined;
     const length = lib.gci_reader_read(reader, &result_buffer, result_buffer.len);
     try testing.expectEqual(0, length);
+    try testing.expect(lib.gci_reader_eof(reader));
 }
 
 test "buffer internal reader fail" {
@@ -269,10 +312,12 @@ test "buffer internal reader fail" {
     );
     try testing.expectEqual(@as(c_uint, lib.GCI_ERROR_OK), init_err);
     const reader = lib.gci_reader_buffer_interface(&context);
+    try testing.expect(!lib.gci_reader_eof(reader));
 
     var result_buffer: [2]u8 = undefined;
     const length = lib.gci_reader_read(reader, &result_buffer, result_buffer.len);
     try testing.expectEqual(0, length);
+    try testing.expect(!lib.gci_reader_eof(reader));
 }
 
 test "buffer internal reader large fail" {
@@ -294,10 +339,12 @@ test "buffer internal reader large fail" {
     );
     try testing.expectEqual(@as(c_uint, lib.GCI_ERROR_OK), init_err);
     const reader = lib.gci_reader_buffer_interface(&context);
+    try testing.expect(!lib.gci_reader_eof(reader));
 
     var result_buffer: [10]u8 = undefined;
     const length = lib.gci_reader_read(reader, &result_buffer, result_buffer.len);
     try testing.expectEqual(0, length);
+    try testing.expect(!lib.gci_reader_eof(reader));
 }
 
 test "buffer clear error" {
@@ -316,17 +363,20 @@ test "buffer clear error" {
     try testing.expectEqual(@as(c_uint, lib.GCI_ERROR_OK), init_err);
 
     const reader = lib.gci_reader_buffer_interface(&context);
+    try testing.expect(!lib.gci_reader_eof(reader));
 
     var buffer1: [1]u8 = undefined;
     const length1 = lib.gci_reader_read(reader, &buffer1, buffer1.len);
     try testing.expectEqual(1, length1);
     try testing.expectEqualStrings("1", &buffer1);
     try testing.expectEqual(2, c1.current);
+    try testing.expect(!lib.gci_reader_eof(reader));
 
     var buffer2: [2]u8 = undefined;
     const length2 = lib.gci_reader_read(reader, &buffer2, buffer2.len);
     try testing.expectEqual(0, length2);
     try testing.expectEqual(2, c1.current);
+    try testing.expect(!lib.gci_reader_eof(reader));
 
     c2.amount_of_reads = 0; // Clear error
 
@@ -334,6 +384,7 @@ test "buffer clear error" {
     const length3 = lib.gci_reader_read(reader, &buffer2, buffer2.len);
     try testing.expectEqual(0, length3);
     try testing.expectEqual(2, c1.current);
+    try testing.expect(!lib.gci_reader_eof(reader));
 }
 
 test "buffer clear error large" {
@@ -352,17 +403,20 @@ test "buffer clear error large" {
     try testing.expectEqual(@as(c_uint, lib.GCI_ERROR_OK), init_err);
 
     const reader = lib.gci_reader_buffer_interface(&context);
+    try testing.expect(!lib.gci_reader_eof(reader));
 
     var buffer1: [1]u8 = undefined;
     const length1 = lib.gci_reader_read(reader, &buffer1, buffer1.len);
     try testing.expectEqual(1, length1);
     try testing.expectEqualStrings("1", &buffer1);
     try testing.expectEqual(2, c1.current);
+    try testing.expect(!lib.gci_reader_eof(reader));
 
     var buffer2: [3]u8 = undefined;
     const length2 = lib.gci_reader_read(reader, &buffer2, buffer2.len);
     try testing.expectEqual(0, length2);
     try testing.expectEqual(2, c1.current);
+    try testing.expect(!lib.gci_reader_eof(reader));
 
     c2.amount_of_reads = 0; // Clear error
 
@@ -370,6 +424,7 @@ test "buffer clear error large" {
     const length3 = lib.gci_reader_read(reader, &buffer2, buffer2.len);
     try testing.expectEqual(0, length3);
     try testing.expectEqual(2, c1.current);
+    try testing.expect(!lib.gci_reader_eof(reader));
 }
 
 test "double buffer init" {
@@ -472,17 +527,20 @@ test "double buffer clear error" {
     try testing.expectEqual(@as(c_uint, lib.GCI_ERROR_OK), init_err);
 
     const reader = lib.gci_reader_buffer_interface(&context);
+    try testing.expect(!lib.gci_reader_eof(reader));
 
     var buffer1: [1]u8 = undefined;
     const length1 = lib.gci_reader_read(reader, &buffer1, buffer1.len);
     try testing.expectEqual(1, length1);
     try testing.expectEqualStrings("1", &buffer1);
     try testing.expectEqual(2, c1.current);
+    try testing.expect(!lib.gci_reader_eof(reader));
 
     var buffer2: [2]u8 = undefined;
     const length2 = lib.gci_reader_read(reader, &buffer2, buffer2.len);
     try testing.expectEqual(0, length2);
     try testing.expectEqual(2, c1.current);
+    try testing.expect(!lib.gci_reader_eof(reader));
 
     c2.amount_of_reads = 0; // Clear error
 
@@ -490,6 +548,7 @@ test "double buffer clear error" {
     try testing.expectEqual(2, length3);
     try testing.expectEqualStrings("22", &buffer2);
     try testing.expectEqual(3, c1.current);
+    try testing.expect(lib.gci_reader_eof(reader));
 }
 
 test "double buffer clear error large" {
@@ -508,17 +567,20 @@ test "double buffer clear error large" {
     try testing.expectEqual(@as(c_uint, lib.GCI_ERROR_OK), init_err);
 
     const reader = lib.gci_reader_buffer_interface(&context);
+    try testing.expect(!lib.gci_reader_eof(reader));
 
     var buffer1: [1]u8 = undefined;
     const length1 = lib.gci_reader_read(reader, &buffer1, buffer1.len);
     try testing.expectEqual(1, length1);
     try testing.expectEqualStrings("1", &buffer1);
     try testing.expectEqual(2, c1.current);
+    try testing.expect(!lib.gci_reader_eof(reader));
 
     var buffer2: [3]u8 = undefined;
     const length2 = lib.gci_reader_read(reader, &buffer2, buffer2.len);
     try testing.expectEqual(0, length2);
     try testing.expectEqual(2, c1.current);
+    try testing.expect(!lib.gci_reader_eof(reader));
 
     c2.amount_of_reads = 0; // Clear error
 
@@ -526,4 +588,5 @@ test "double buffer clear error large" {
     try testing.expectEqual(3, length3);
     try testing.expectEqualStrings("222", &buffer2);
     try testing.expectEqual(4, c1.current);
+    try testing.expect(lib.gci_reader_eof(reader));
 }

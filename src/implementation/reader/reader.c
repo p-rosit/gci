@@ -1,12 +1,16 @@
 #include <limits.h>
 #include <string.h>
 #include <stdbool.h>
-#include "gci_reader.h"
+#include <gci_reader.h>
 
 size_t gci_reader_fail_read(void const *context, char *buffer, size_t buffer_size);
 size_t gci_reader_file_read(void const *context, char *buffer, size_t buffer_size);
 size_t gci_reader_string_read(void const *context, char *buffer, size_t buffer_size);
 size_t gci_reader_buffer_read(void const *context, char *buffer, size_t buffer_size);
+bool gci_reader_fail_eof(void const *context);
+bool gci_reader_file_eof(void const *context);
+bool gci_reader_string_eof(void const *context);
+bool gci_reader_buffer_eof(void const *context);
 
 enum GciError gci_reader_fail_init(struct GciReaderFail *context, struct GciInterfaceReader reader, size_t reads_before_fail) {
     if (context == NULL) { return GCI_ERROR_NULL; }
@@ -19,7 +23,11 @@ enum GciError gci_reader_fail_init(struct GciReaderFail *context, struct GciInte
 }
 
 struct GciInterfaceReader gci_reader_fail_interface(struct GciReaderFail *context) {
-    return (struct GciInterfaceReader) { .context = context, .read = gci_reader_fail_read };
+    return (struct GciInterfaceReader) {
+        .context = context,
+        .read = gci_reader_fail_read,
+        .eof = gci_reader_fail_eof,
+    };
 }
 
 size_t gci_reader_fail_read(void const *void_context, char *buffer, size_t buffer_size) {
@@ -41,6 +49,12 @@ size_t gci_reader_fail_read(void const *void_context, char *buffer, size_t buffe
     return length;
 }
 
+bool gci_reader_fail_eof(void const *void_context) {
+    assert(void_context != NULL);
+    struct GciReaderFail *context = (struct GciReaderFail*) void_context;
+    return gci_reader_eof(context->reader);
+}
+
 enum GciError gci_reader_file_init(struct GciReaderFile *context, FILE *file) {
     if (context == NULL) { return GCI_ERROR_NULL; }
 
@@ -51,7 +65,11 @@ enum GciError gci_reader_file_init(struct GciReaderFile *context, FILE *file) {
 }
 
 struct GciInterfaceReader gci_reader_file_interface(struct GciReaderFile *context) {
-    return (struct GciInterfaceReader) { .context = context, .read = gci_reader_file_read };
+    return (struct GciInterfaceReader) {
+        .context = context,
+        .read = gci_reader_file_read,
+        .eof = gci_reader_file_eof,
+    };
 }
 
 size_t gci_reader_file_read(void const *void_context, char *buffer, size_t buffer_size) {
@@ -63,6 +81,12 @@ size_t gci_reader_file_read(void const *void_context, char *buffer, size_t buffe
 
     assert(read_length <= buffer_size);
     return read_length;
+}
+
+bool gci_reader_file_eof(void const *void_context) {
+    assert(void_context != NULL);
+    struct GciReaderFile *context = (struct GciReaderFile*) void_context;
+    return feof(context->file);
 }
 
 enum GciError gci_reader_string_init(struct GciReaderString *context, char const *buffer, size_t buffer_size) {
@@ -80,7 +104,11 @@ enum GciError gci_reader_string_init(struct GciReaderString *context, char const
 }
 
 struct GciInterfaceReader gci_reader_string_interface(struct GciReaderString *context) {
-    return (struct GciInterfaceReader) { .context = context, .read = gci_reader_string_read };
+    return (struct GciInterfaceReader) {
+        .context = context,
+        .read = gci_reader_string_read,
+        .eof = gci_reader_string_eof,
+    };
 }
 
 size_t gci_reader_string_read(void const *void_context, char *buffer, size_t buffer_size) {
@@ -102,6 +130,12 @@ size_t gci_reader_string_read(void const *void_context, char *buffer, size_t buf
 
     assert(read_length <= buffer_size);
     return read_length;
+}
+
+bool gci_reader_string_eof(void const *void_context) {
+    assert(void_context != NULL);
+    struct GciReaderString *context = (struct GciReaderString*) void_context;
+    return context->current >= context->buffer_size;
 }
 
 enum GciError gci_reader_buffer_init(
@@ -147,7 +181,11 @@ enum GciError gci_reader_double_buffer_init(
 }
 
 struct GciInterfaceReader gci_reader_buffer_interface(struct GciReaderBuffer *context) {
-    return (struct GciInterfaceReader) { .context = context, .read = gci_reader_buffer_read };
+    return (struct GciInterfaceReader) {
+        .context = context,
+        .read = gci_reader_buffer_read,
+        .eof = gci_reader_buffer_eof,
+    };
 }
 
 size_t gci_reader_buffer_read(void const *void_context, char *buffer, size_t buffer_size) {
@@ -214,4 +252,10 @@ size_t gci_reader_buffer_read(void const *void_context, char *buffer, size_t buf
 
     assert(read_length <= buffer_size);
     return read_length;
+}
+
+bool gci_reader_buffer_eof(void const *void_context) {
+    assert(void_context != NULL);
+    struct GciReaderBuffer *context = (struct GciReaderBuffer*) void_context;
+    return (context->current >= context->length_read) && gci_reader_eof(context->reader);
 }

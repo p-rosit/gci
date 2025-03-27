@@ -13,6 +13,10 @@ pub const InterfaceReader = struct {
             return buffer[0..length];
         }
     }
+
+    pub fn eof(reader: InterfaceReader) bool {
+        return lib.gci_reader_eof(reader.reader);
+    }
 };
 
 pub const Fail = struct {
@@ -40,9 +44,10 @@ pub fn Reader(AnyReader: type) type {
         const Self = @This();
 
         reader: *const AnyReader,
+        saw_eof: bool,
 
         pub fn init(reader: *const AnyReader) Self {
-            return Self{ .reader = reader };
+            return Self{ .reader = reader, .saw_eof = false };
         }
 
         pub fn interface(self: *Self) InterfaceReader {
@@ -58,7 +63,21 @@ pub fn Reader(AnyReader: type) type {
             const r: *const AnyReader = self.reader;
             const b = @as(*[]u8, @constCast(@ptrCast(&.{ .ptr = buffer, .len = buffer_size }))).*;
 
-            return r.read(b) catch 0;
+            const amount_read = r.read(b) catch |err| switch (err) {
+                error.EnfOfStream => {
+                    self.saw_eof = true;
+                    0;
+                },
+                else => 0,
+            };
+
+            return amount_read;
+        }
+
+        fn eofCallback(context: ?*const anyopaque) callconv(.C) c_int {
+            std.debug.assert(null != context);
+            const self: *Self = @constCast(@alignCast(@ptrCast(context)));
+            return self.saw_eof;
         }
     };
 }
@@ -151,13 +170,21 @@ test "fail fails" {
 
     var context = try Fail.init(c.interface(), 1);
     const reader = context.interface();
+    try testing.expect(!reader.eof());
 
     var buffer: [1]u8 = undefined;
-    const result = try reader.read(&buffer);
-    try testing.expectEqualStrings("1", result);
+    const result1 = try reader.read(&buffer);
+    try testing.expectEqualStrings("1", result1);
+    try testing.expect(!reader.eof());
 
     const err = reader.read(&buffer);
     try testing.expectError(error.Reader, err);
+    try testing.expect(!reader.eof());
+
+    context.inner.reads_before_fail = 2;
+    const result2 = try reader.read(&buffer);
+    try testing.expectEqualStrings("2", result2);
+    try testing.expect(reader.eof());
 }
 
 test "file init" {
@@ -190,13 +217,16 @@ test "file read" {
 
     var context = try File.init(@ptrCast(file));
     const reader = context.interface();
+    try testing.expect(!reader.eof());
 
     var buffer: [1]u8 = undefined;
     const result = try reader.read(&buffer);
     try testing.expectEqualStrings("1", result);
+    try testing.expect(!reader.eof());
 
     const err = reader.read(&buffer);
     try testing.expectError(error.Reader, err);
+    try testing.expect(reader.eof());
 }
 
 test "string init" {
@@ -209,23 +239,44 @@ test "string read" {
     const data = "zig";
     var context = try String.init(data);
     const reader = context.interface();
+    try testing.expect(!reader.eof());
 
     var buffer: [3]u8 = undefined;
     const result = try reader.read(&buffer);
     try testing.expectEqualStrings("zig", result);
+    try testing.expect(reader.eof());
+}
+
+test "string read separate" {
+    const data = "12";
+    var context = try String.init(data);
+    const reader = context.interface();
+    try testing.expect(!reader.eof());
+
+    var buffer: [1]u8 = undefined;
+    const result1 = try reader.read(&buffer);
+    try testing.expectEqualStrings("1", result1);
+    try testing.expect(!reader.eof());
+
+    const result2 = try reader.read(&buffer);
+    try testing.expectEqualStrings("2", result2);
+    try testing.expect(reader.eof());
 }
 
 test "string read overflow" {
     const data = "z";
     var context = try String.init(data);
     const reader = context.interface();
+    try testing.expect(!reader.eof());
 
     var buffer: [2]u8 = undefined;
     const result = try reader.read(&buffer);
     try testing.expectEqualStrings("z", result);
+    try testing.expect(reader.eof());
 
     const err = reader.read(&buffer);
     try testing.expectError(error.Reader, err);
+    try testing.expect(reader.eof());
 }
 
 test "buffer init" {
@@ -253,10 +304,12 @@ test "buffer read" {
     var buffer: [3]u8 = undefined;
     var context = try Buffer.init(c.interface(), &buffer);
     const reader = context.interface();
+    try testing.expect(!reader.eof());
 
     var result_buffer: [2]u8 = undefined;
     const result = try reader.read(&result_buffer);
     try testing.expectEqualStrings("da", result);
+    try testing.expect(!reader.eof());
 }
 
 test "buffer read buffer twice" {
@@ -266,10 +319,12 @@ test "buffer read buffer twice" {
     var buffer: [3]u8 = undefined;
     var context = try Buffer.init(c.interface(), &buffer);
     const reader = context.interface();
+    try testing.expect(!reader.eof());
 
     var result_buffer: [5]u8 = undefined;
     const result = try reader.read(&result_buffer);
     try testing.expectEqualStrings("data", result);
+    try testing.expect(reader.eof());
 }
 
 test "buffer internal reader empty" {
@@ -283,6 +338,7 @@ test "buffer internal reader empty" {
     var result_buffer: [4]u8 = undefined;
     const err = reader.read(&result_buffer);
     try testing.expectError(error.Reader, err);
+    try testing.expect(reader.eof());
 }
 
 test "buffer internal reader fail" {
@@ -292,10 +348,12 @@ test "buffer internal reader fail" {
     var buffer: [3]u8 = undefined;
     var context = try Buffer.init(c2.interface(), &buffer);
     const reader = context.interface();
+    try testing.expect(!reader.eof());
 
     var result_buffer: [2]u8 = undefined;
     const err = reader.read(&result_buffer);
     try testing.expectError(error.Reader, err);
+    try testing.expect(!reader.eof());
 }
 
 test "buffer internal reader large fail" {
@@ -305,10 +363,12 @@ test "buffer internal reader large fail" {
     var buffer: [3]u8 = undefined;
     var context = try Buffer.init(c2.interface(), &buffer);
     const reader = context.interface();
+    try testing.expect(!reader.eof());
 
     var result_buffer: [10]u8 = undefined;
     const err = reader.read(&result_buffer);
     try testing.expectError(error.Reader, err);
+    try testing.expect(!reader.eof());
 }
 
 test "buffer clear error" {
@@ -318,16 +378,19 @@ test "buffer clear error" {
     var b: [2]u8 = undefined;
     var context = try Buffer.init(c2.interface(), &b);
     const reader = context.interface();
+    try testing.expect(!reader.eof());
 
     var buffer1: [1]u8 = undefined;
     const r1 = try reader.read(&buffer1);
     try testing.expectEqualStrings("1", r1);
     try testing.expectEqual(2, c1.inner.current);
+    try testing.expect(!reader.eof());
 
     var buffer2: [2]u8 = undefined;
     const err1 = reader.read(&buffer2);
     try testing.expectError(error.Reader, err1);
     try testing.expectEqual(2, c1.inner.current);
+    try testing.expect(!reader.eof());
 
     c2.inner.amount_of_reads = 0; // Clear error
 
@@ -335,6 +398,7 @@ test "buffer clear error" {
     const err2 = reader.read(&buffer2);
     try testing.expectError(error.Reader, err2);
     try testing.expectEqual(2, c1.inner.current);
+    try testing.expect(!reader.eof());
 }
 
 test "buffer clear error large" {
@@ -344,16 +408,19 @@ test "buffer clear error large" {
     var b: [2]u8 = undefined;
     var context = try Buffer.init(c2.interface(), &b);
     const reader = context.interface();
+    try testing.expect(!reader.eof());
 
     var buffer1: [1]u8 = undefined;
     const r1 = try reader.read(&buffer1);
     try testing.expectEqualStrings("1", r1);
     try testing.expectEqual(2, c1.inner.current);
+    try testing.expect(!reader.eof());
 
     var buffer2: [3]u8 = undefined;
     const err1 = reader.read(&buffer2);
     try testing.expectError(error.Reader, err1);
     try testing.expectEqual(2, c1.inner.current);
+    try testing.expect(!reader.eof());
 
     c2.inner.amount_of_reads = 0; // Clear error
 
@@ -361,6 +428,7 @@ test "buffer clear error large" {
     const err2 = reader.read(&buffer2);
     try testing.expectError(error.Reader, err2);
     try testing.expectEqual(2, c1.inner.current);
+    try testing.expect(!reader.eof());
 }
 
 test "double buffer init" {
@@ -397,22 +465,26 @@ test "double buffer clear error" {
     var b: [4]u8 = undefined;
     var context = try Buffer.double(c2.interface(), &b);
     const reader = context.interface();
+    try testing.expect(!reader.eof());
 
     var buffer1: [1]u8 = undefined;
     const r1 = try reader.read(&buffer1);
     try testing.expectEqualStrings("1", r1);
     try testing.expectEqual(2, c1.inner.current);
+    try testing.expect(!reader.eof());
 
     var buffer2: [2]u8 = undefined;
     const err = reader.read(&buffer2);
     try testing.expectError(error.Reader, err);
     try testing.expectEqual(2, c1.inner.current);
+    try testing.expect(!reader.eof());
 
     c2.inner.amount_of_reads = 0; // Clear error
 
     const r2 = try reader.read(&buffer2);
     try testing.expectEqualStrings("22", r2);
     try testing.expectEqual(3, c1.inner.current);
+    try testing.expect(reader.eof());
 }
 
 test "double buffer clear error large" {
@@ -422,20 +494,24 @@ test "double buffer clear error large" {
     var b: [4]u8 = undefined;
     var context = try Buffer.double(c2.interface(), &b);
     const reader = context.interface();
+    try testing.expect(!reader.eof());
 
     var buffer1: [1]u8 = undefined;
     const r1 = try reader.read(&buffer1);
     try testing.expectEqualStrings("1", r1);
     try testing.expectEqual(2, c1.inner.current);
+    try testing.expect(!reader.eof());
 
     var buffer2: [3]u8 = undefined;
     const err = reader.read(&buffer2);
     try testing.expectError(error.Reader, err);
     try testing.expectEqual(2, c1.inner.current);
+    try testing.expect(!reader.eof());
 
     c2.inner.amount_of_reads = 0; // Clear error
 
     const r2 = try reader.read(&buffer2);
     try testing.expectEqualStrings("222", r2);
     try testing.expectEqual(4, c1.inner.current);
+    try testing.expect(reader.eof());
 }
