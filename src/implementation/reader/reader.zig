@@ -221,13 +221,17 @@ test "fail fails" {
     try testing.expectEqualStrings("1", result1);
     try testing.expect(!reader.eof());
 
-    const err = reader.read(&buffer);
-    try testing.expectError(error.Reader, err);
+    const err1 = reader.read(&buffer);
+    try testing.expectError(error.Reader, err1);
     try testing.expect(!reader.eof());
 
-    context.inner.reads_before_fail = 2;
+    context.inner.reads_before_fail = 3;
     const result2 = try reader.read(&buffer);
     try testing.expectEqualStrings("2", result2);
+    try testing.expect(!reader.eof());
+
+    const err2 = reader.read(&buffer);
+    try testing.expectError(error.Reader, err2);
     try testing.expect(reader.eof());
 }
 
@@ -288,6 +292,10 @@ test "string read" {
     var buffer: [3]u8 = undefined;
     const result = try reader.read(&buffer);
     try testing.expectEqualStrings("zig", result);
+    try testing.expect(!reader.eof());
+
+    const err = reader.read(&buffer);
+    try testing.expectError(error.Reader, err);
     try testing.expect(reader.eof());
 }
 
@@ -304,6 +312,10 @@ test "string read separate" {
 
     const result2 = try reader.read(&buffer);
     try testing.expectEqualStrings("2", result2);
+    try testing.expect(!reader.eof());
+
+    const err = reader.read(&buffer);
+    try testing.expectError(error.Reader, err);
     try testing.expect(reader.eof());
 }
 
@@ -378,6 +390,7 @@ test "buffer internal reader empty" {
     var buffer: [3]u8 = undefined;
     var context = try Buffer.init(c.interface(), &buffer);
     const reader = context.interface();
+    try testing.expect(!reader.eof());
 
     var result_buffer: [4]u8 = undefined;
     const err = reader.read(&result_buffer);
@@ -518,8 +531,8 @@ test "double buffer clear error" {
     try testing.expect(!reader.eof());
 
     var buffer2: [2]u8 = undefined;
-    const err = reader.read(&buffer2);
-    try testing.expectError(error.Reader, err);
+    const err1 = reader.read(&buffer2);
+    try testing.expectError(error.Reader, err1);
     try testing.expectEqual(2, c1.inner.current);
     try testing.expect(!reader.eof());
 
@@ -527,7 +540,15 @@ test "double buffer clear error" {
 
     const r2 = try reader.read(&buffer2);
     try testing.expectEqualStrings("22", r2);
-    try testing.expectEqual(3, c1.inner.current);
+    try testing.expectEqual(4, c1.inner.current);
+    try testing.expect(!reader.eof());
+
+    c2.inner.amount_of_reads = 0; // Clear error
+
+    var buffer3: [1]u8 = undefined;
+    const err2 = reader.read(&buffer3);
+    try testing.expectError(error.Reader, err2);
+    try testing.expectEqual(5, c1.inner.current);
     try testing.expect(reader.eof());
 }
 
@@ -547,8 +568,8 @@ test "double buffer clear error large" {
     try testing.expect(!reader.eof());
 
     var buffer2: [3]u8 = undefined;
-    const err = reader.read(&buffer2);
-    try testing.expectError(error.Reader, err);
+    const err1 = reader.read(&buffer2);
+    try testing.expectError(error.Reader, err1);
     try testing.expectEqual(2, c1.inner.current);
     try testing.expect(!reader.eof());
 
@@ -557,5 +578,13 @@ test "double buffer clear error large" {
     const r2 = try reader.read(&buffer2);
     try testing.expectEqualStrings("222", r2);
     try testing.expectEqual(4, c1.inner.current);
+    try testing.expect(!reader.eof());
+
+    c2.inner.amount_of_reads = 0; // Clear error
+
+    var buffer3: [1]u8 = undefined;
+    const err2 = reader.read(&buffer3);
+    try testing.expectError(error.Reader, err2);
+    try testing.expectEqual(5, c1.inner.current);
     try testing.expect(reader.eof());
 }
