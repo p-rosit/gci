@@ -1,8 +1,7 @@
 #include <stdint.h>
 #include <limits.h>
 #include <string.h>
-#include "gci_interface_writer.h"
-#include "gci_writer.h"
+#include <gci_writer.h>
 
 size_t gci_writer_file_write(void const *void_context, char const *data, size_t data_size);
 size_t gci_writer_string_write(void const *void_context, char const *data, size_t data_size);
