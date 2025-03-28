@@ -283,6 +283,18 @@ test "string init" {
     _ = context.interface();
 }
 
+test "string init large" {
+    var data = try testing.allocator.alloc(u8, 2);
+    data.len = std.math.maxInt(usize);
+    defer {
+        data.len = 2;
+        testing.allocator.free(data);
+    }
+
+    const err = String.init(data);
+    try testing.expectError(error.Buffer, err);
+}
+
 test "string read" {
     const data = "zig";
     var context = try String.init(data);
@@ -350,6 +362,21 @@ test "buffer init buffer small" {
 
     var buffer: [1]u8 = undefined;
     const err = Buffer.init(c.interface(), &buffer);
+    try testing.expectError(error.Buffer, err);
+}
+
+test "buffer init large" {
+    const d = "data";
+    var c = try String.init(d);
+
+    var buffer = try testing.allocator.alloc(u8, 2);
+    buffer.len = std.math.maxInt(usize);
+    defer {
+        buffer.len = 2;
+        testing.allocator.free(buffer);
+    }
+
+    const err = Buffer.init(c.interface(), buffer);
     try testing.expectError(error.Buffer, err);
 }
 

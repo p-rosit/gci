@@ -119,6 +119,13 @@ test "string init null buffer" {
     try testing.expectEqual(@as(c_uint, lib.GCI_ERROR_NULL), init_err);
 }
 
+test "string init large" {
+    var data: [0]u8 = undefined;
+    var context: lib.GciReaderString = undefined;
+    const init_err = lib.gci_reader_string_init(&context, &data, std.math.maxInt(usize));
+    try testing.expectEqual(@as(c_uint, lib.GCI_ERROR_BUFFER), init_err);
+}
+
 test "string read" {
     const data = "zig";
     var context: lib.GciReaderString = undefined;
@@ -229,6 +236,23 @@ test "buffer init null buffer" {
         1,
     );
     try testing.expectEqual(@as(c_uint, lib.GCI_ERROR_NULL), init_err);
+}
+
+test "buffer init large" {
+    const data = "data";
+    var c: lib.GciReaderString = undefined;
+    const i_err = lib.gci_reader_string_init(&c, data, data.len);
+    try testing.expectEqual(@as(c_uint, lib.GCI_ERROR_OK), i_err);
+
+    var buffer: [2]u8 = undefined;
+    var context: lib.GciReaderBuffer = undefined;
+    const init_err = lib.gci_reader_buffer_init(
+        &context,
+        lib.gci_reader_string_interface(&c),
+        &buffer,
+        std.math.maxInt(usize),
+    );
+    try testing.expectEqual(@as(c_uint, lib.GCI_ERROR_BUFFER), init_err);
 }
 
 test "buffer read" {
