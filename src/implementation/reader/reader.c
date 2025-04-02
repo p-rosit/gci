@@ -120,7 +120,7 @@ size_t gci_reader_string_read(void const *void_context, char *buffer, size_t buf
     assert(0 <= context->current && context->current <= context->buffer_size + 1);
     if (context->current >= context->buffer_size) {
         assert(context->buffer_size < SIZE_MAX);
-        context->current += 1;
+        context->current = context->buffer_size + 1;
         return 0;
     }
 
