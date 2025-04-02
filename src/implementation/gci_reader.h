@@ -1,5 +1,5 @@
-#ifndef CON_READER_H
-#define CON_READER_H
+#ifndef GCI_READER_H
+#define GCI_READER_H
 #include <stdio.h>
 #include <gci_common.h>
 #include <gci_interface_reader.h>
