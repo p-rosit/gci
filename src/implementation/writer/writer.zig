@@ -221,6 +221,16 @@ test "string write" {
     try testing.expectEqualStrings("12", &buffer);
 }
 
+test "string write multiple" {
+    var buffer: [2]u8 = undefined;
+    var context = try String.init(&buffer);
+    const writer = context.interface();
+
+    try writer.write("1");
+    try writer.write("2");
+    try testing.expectEqualStrings("12", &buffer);
+}
+
 test "string overflow" {
     var buffer: [0]u8 = undefined;
     var context = try String.init(&buffer);
