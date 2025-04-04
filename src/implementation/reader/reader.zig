@@ -72,9 +72,7 @@ pub fn Reader(AnyReader: type) type {
                 break :blk 0;
             };
 
-            if (amount_read < buffer_size) {
-                self.saw_eof = true;
-            }
+            self.saw_eof = self.saw_eof or (amount_read < buffer_size);
 
             return amount_read;
         }
