@@ -68,6 +68,29 @@ size_t gci_writer_string_write(void const *void_context, char const *data, size_
     return write_length;
 }
 
+size_t gci_writer_string_start(struct GciWriterString *context) {
+    assert(context != NULL);
+    return context->current;
+}
+
+enum GciError gci_writer_string_end(struct GciWriterString *context, size_t start, char **string, size_t *length) {
+    assert(context != NULL);
+    assert(string != NULL);
+    assert(length != NULL);
+    assert(start <= context->buffer_size);
+    assert(start <= context->current);
+
+    if (start >= context->buffer_size) {
+        *string = context->buffer + context->current - 1;
+        *length = 0;
+    } else {
+        *string = context->buffer + start;
+        *length = context->current - start;
+    }
+
+    return GCI_ERROR_OK;
+}
+
 enum GciError gci_writer_buffer_init(
         struct GciWriterBuffer *context,
         struct GciInterfaceWriter writer,

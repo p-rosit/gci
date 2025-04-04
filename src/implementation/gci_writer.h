@@ -54,6 +54,13 @@ enum GciError gci_writer_string_init(
 // the returned writer owns the passed in `context`.
 struct GciInterfaceWriter gci_writer_string_interface(struct GciWriterString *context);
 
+// Returns the start of a string in the writer
+size_t gci_writer_string_start(struct GciWriterString *context);
+
+// Given the start of a string returns a sized string in `string` and `length`.
+// Guaranteed to be valid pointer into the `buffer` owned by `context`.
+enum GciError gci_writer_string_end(struct GciWriterString *context, size_t start, char **string, size_t *length);
+
 // A writer that buffers any calls to an internal writer.
 struct GciWriterBuffer {
     struct GciInterfaceWriter writer;

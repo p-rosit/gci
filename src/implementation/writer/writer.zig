@@ -84,6 +84,22 @@ pub const String = struct {
     pub fn interface(self: *String) InterfaceWriter {
         return .{ .writer = lib.gci_writer_string_interface(&self.inner) };
     }
+
+    pub fn start(self: *String) usize {
+        return lib.gci_writer_string_start(&self.inner);
+    }
+
+    pub fn end(self: *String, start_result: usize) ![]u8 {
+        var result: []u8 = undefined;
+        const err = lib.gci_writer_string_end(
+            &self.inner,
+            start_result,
+            @ptrCast(&result.ptr),
+            &result.len,
+        );
+        try internal.enumToError(err);
+        return result;
+    }
 };
 
 pub const Buffer = struct {
@@ -212,6 +228,37 @@ test "string overflow" {
 
     const err = writer.write("1");
     try testing.expectError(error.Writer, err);
+}
+
+test "string start" {
+    var buffer: [2]u8 = undefined;
+    var context = try String.init(&buffer);
+    const writer = context.interface();
+
+    const s1 = context.start();
+    try testing.expectEqual(0, s1);
+
+    try writer.write("12");
+
+    const s2 = context.start();
+    try testing.expectEqual(2, s2);
+}
+
+test "string end" {
+    var buffer: [5]u8 = undefined;
+    var context = try String.init(&buffer);
+    const writer = context.interface();
+
+    try writer.write("12345");
+
+    const r1 = try context.end(0);
+    try testing.expectEqualStrings("12345", r1);
+
+    const r2 = try context.end(5);
+    try testing.expectEqualStrings("", r2);
+
+    const r3 = try context.end(3);
+    try testing.expectEqualStrings("45", r3);
 }
 
 test "buffer init" {

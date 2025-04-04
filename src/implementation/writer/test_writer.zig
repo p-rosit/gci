@@ -115,6 +115,54 @@ test "string overflow" {
     try testing.expectEqual(0, res);
 }
 
+test "string start" {
+    var buffer: [2]u8 = undefined;
+    var context: lib.GciWriterString = undefined;
+
+    const init_err = lib.gci_writer_string_init(&context, &buffer, buffer.len);
+    try testing.expectEqual(@as(c_uint, lib.GCI_ERROR_OK), init_err);
+
+    const writer = lib.gci_writer_string_interface(&context);
+
+    const s1 = lib.gci_writer_string_start(&context);
+    try testing.expectEqual(0, s1);
+
+    const res = lib.gci_writer_write(writer, "12", 2);
+    try testing.expectEqual(2, res);
+    try testing.expectEqualStrings("12", &buffer);
+
+    const s2 = lib.gci_writer_string_start(&context);
+    try testing.expectEqual(2, s2);
+}
+
+test "string end" {
+    var buffer: [5]u8 = undefined;
+    var context: lib.GciWriterString = undefined;
+
+    const init_err = lib.gci_writer_string_init(&context, &buffer, buffer.len);
+    try testing.expectEqual(@as(c_uint, lib.GCI_ERROR_OK), init_err);
+
+    const writer = lib.gci_writer_string_interface(&context);
+
+    const res = lib.gci_writer_write(writer, "12345", 5);
+    try testing.expectEqual(5, res);
+
+    var r1: []u8 = undefined;
+    const err1 = lib.gci_writer_string_end(&context, 0, @ptrCast(&r1.ptr), &r1.len);
+    try testing.expectEqual(@as(c_uint, lib.GCI_ERROR_OK), err1);
+    try testing.expectEqualStrings("12345", r1);
+
+    var r2: []u8 = undefined;
+    const err2 = lib.gci_writer_string_end(&context, 5, @ptrCast(&r2.ptr), &r2.len);
+    try testing.expectEqual(@as(c_uint, lib.GCI_ERROR_OK), err2);
+    try testing.expectEqualStrings("", r2);
+
+    var r3: []u8 = undefined;
+    const err3 = lib.gci_writer_string_end(&context, 3, @ptrCast(&r3.ptr), &r3.len);
+    try testing.expectEqual(@as(c_uint, lib.GCI_ERROR_OK), err3);
+    try testing.expectEqualStrings("45", r3);
+}
+
 test "buffer init" {
     var c: lib.GciWriterString = undefined;
 
