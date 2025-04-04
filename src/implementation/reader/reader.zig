@@ -67,12 +67,9 @@ pub fn Reader(AnyReader: type) type {
             const r: *const AnyReader = self.reader;
             const b = @as(*[]u8, @constCast(@ptrCast(&.{ .ptr = buffer, .len = buffer_size }))).*;
 
-            const amount_read = r.read(b) catch |err| switch (err) {
-                error.EndOfStream => blk: {
-                    self.saw_eof = true;
-                    break :blk 0;
-                },
-                else => 0,
+            const amount_read = r.read(b) catch |err| blk: {
+                self.saw_eof = self.saw_eof or (err == error.EndOfStream);
+                break :blk 0;
             };
 
             if (amount_read < buffer_size) {
