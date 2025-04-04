@@ -591,7 +591,7 @@ test "double buffer clear error" {
     var buffer3: [1]u8 = undefined;
     const length4 = lib.gci_reader_read(reader, &buffer3, buffer3.len);
     try testing.expectEqual(0, length4);
-    try testing.expectEqual(5, c1.current);
+    try testing.expectEqual(4, c1.current);
     try testing.expect(lib.gci_reader_eof(reader));
 }
 

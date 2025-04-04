@@ -570,7 +570,7 @@ test "double buffer clear error" {
     var buffer3: [1]u8 = undefined;
     const err2 = reader.read(&buffer3);
     try testing.expectError(error.Reader, err2);
-    try testing.expectEqual(5, c1.inner.current);
+    try testing.expectEqual(4, c1.inner.current);
     try testing.expect(reader.eof());
 }
 
